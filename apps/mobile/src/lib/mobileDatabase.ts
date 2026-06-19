@@ -50,15 +50,20 @@ export async function loadMobileSettings(): Promise<MobileSettings> {
     'SELECT value FROM app_settings WHERE key = ?',
     SETTINGS_KEY,
   )
-  if (!row) return DEFAULT_MOBILE_SETTINGS
+  if (!row) return normalizeMobileSettings({}).settings
 
   try {
-    return {
-      ...DEFAULT_MOBILE_SETTINGS,
-      ...(JSON.parse(row.value) as Partial<MobileSettings>),
+    const { settings, migrated } = normalizeMobileSettings(JSON.parse(row.value) as Partial<MobileSettings>)
+    if (migrated) {
+      await db.runAsync(
+        'INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)',
+        SETTINGS_KEY,
+        JSON.stringify(settings),
+      )
     }
+    return settings
   } catch {
-    return DEFAULT_MOBILE_SETTINGS
+    return normalizeMobileSettings({}).settings
   }
 }
 
@@ -126,4 +131,49 @@ function rowToReading(row: ReadingRow): GlucoseReading {
     timestamp: new Date(row.timestamp),
     source: row.source,
   }
+}
+
+function normalizeMobileSettings(raw: Partial<MobileSettings>): { settings: MobileSettings; migrated: boolean } {
+  const settings: MobileSettings = {
+    ...DEFAULT_MOBILE_SETTINGS,
+    ...raw,
+    alarmThresholds: {
+      ...DEFAULT_MOBILE_SETTINGS.alarmThresholds,
+      ...raw.alarmThresholds,
+    },
+    staleDataConfig: {
+      ...DEFAULT_MOBILE_SETTINGS.staleDataConfig,
+      ...raw.staleDataConfig,
+    },
+  }
+
+  let migrated = false
+  if (isOlderVersion(settings.lluClientVersion, DEFAULT_MOBILE_SETTINGS.lluClientVersion)) {
+    settings.lluClientVersion = DEFAULT_MOBILE_SETTINGS.lluClientVersion
+    migrated = true
+  }
+
+  return { settings, migrated }
+}
+
+function isOlderVersion(current: string, target: string): boolean {
+  const currentParts = parseVersion(current)
+  const targetParts = parseVersion(target)
+  const length = Math.max(currentParts.length, targetParts.length)
+
+  for (let index = 0; index < length; index += 1) {
+    const left = currentParts[index] ?? 0
+    const right = targetParts[index] ?? 0
+    if (left < right) return true
+    if (left > right) return false
+  }
+
+  return false
+}
+
+function parseVersion(version: string): number[] {
+  return version.split('.').map((part) => {
+    const parsed = Number.parseInt(part, 10)
+    return Number.isFinite(parsed) ? parsed : 0
+  })
 }

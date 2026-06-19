@@ -120,7 +120,7 @@ export default function App(): ReactElement {
       const response = await getConnections(
         activeSession.baseUrl,
         activeSession.token,
-        activeSession.clientVersion,
+        activeSettings.lluClientVersion,
         activeSession.accountId,
       )
 
@@ -143,7 +143,7 @@ export default function App(): ReactElement {
       }
 
       const latest = mapLatestFromConnection(selected)
-      const graph = await loadGraphReadings(activeSession, selected)
+      const graph = await loadGraphReadings(activeSession, selected, effectiveSettings.lluClientVersion)
       const merged = mergeLatest(graph, latest)
 
       await saveReadings(merged)
@@ -154,6 +154,14 @@ export default function App(): ReactElement {
       evaluateAlarm(latest, effectiveSettings)
       setStatus({ tone: 'ok', message: `Updated ${formatTime(latest.timestamp)}` })
     } catch (error) {
+      if (isRejectedSessionError(error)) {
+        await clearSession()
+        setSession(null)
+        setConnections([])
+        setStatus({ tone: 'error', message: formatLluError(error) })
+        setActiveTab('connection')
+        return
+      }
       setStatus({ tone: 'error', message: formatLluError(error) })
     } finally {
       setIsBusy(false)
@@ -175,16 +183,23 @@ export default function App(): ReactElement {
 
       if (cancelled) return
 
+      const activeStoredSession = storedSession
+        ? { ...storedSession, clientVersion: storedSettings.lluClientVersion }
+        : null
+      if (activeStoredSession && activeStoredSession.clientVersion !== storedSession?.clientVersion) {
+        await saveSession(activeStoredSession)
+      }
+
       setSettings(storedSettings)
       setRegion(storedSettings.lluRegion)
-      setSession(storedSession)
-      setEmail(storedSession?.email ?? '')
+      setSession(activeStoredSession)
+      setEmail(activeStoredSession?.email ?? '')
       setCurrent(latest)
       setHistory(storedHistory)
-      setStatus(storedSession ? { tone: 'ok', message: 'Session restored' } : { tone: 'idle', message: 'Connect LibreLinkUp' })
+      setStatus(activeStoredSession ? { tone: 'ok', message: 'Session restored' } : { tone: 'idle', message: 'Connect LibreLinkUp' })
 
-      if (storedSession) {
-        void refreshReadings(storedSession, storedSettings)
+      if (activeStoredSession) {
+        void refreshReadings(activeStoredSession, storedSettings)
       }
     }
 
@@ -377,9 +392,11 @@ export default function App(): ReactElement {
               password={password}
               region={region}
               session={session}
+              clientVersion={settings.lluClientVersion}
               setEmail={setEmail}
               setPassword={setPassword}
               setRegion={setRegion}
+              onClientVersionChange={(clientVersion) => void updateSettings({ lluClientVersion: clientVersion })}
               onDisconnect={handleDisconnect}
               onLogin={handleLogin}
             />
@@ -559,9 +576,11 @@ interface ConnectionViewProps {
   password: string
   region: string
   session: LluSession | null
+  clientVersion: string
   setEmail: (value: string) => void
   setPassword: (value: string) => void
   setRegion: (value: string) => void
+  onClientVersionChange: (value: string) => void
   onDisconnect: () => Promise<void>
   onLogin: () => Promise<void>
 }
@@ -572,9 +591,11 @@ function ConnectionView({
   password,
   region,
   session,
+  clientVersion,
   setEmail,
   setPassword,
   setRegion,
+  onClientVersionChange,
   onDisconnect,
   onLogin,
 }: ConnectionViewProps): ReactElement {
@@ -592,6 +613,8 @@ function ConnectionView({
       <TextInput secureTextEntry style={styles.input} value={password} onChangeText={setPassword} />
       <Text style={styles.label}>Region</Text>
       <TextInput autoCapitalize="none" style={styles.input} value={region} onChangeText={setRegion} placeholder="ru, eu, us..." />
+      <Text style={styles.label}>Client version</Text>
+      <TextInput autoCapitalize="none" style={styles.input} value={clientVersion} onChangeText={onClientVersionChange} />
       <Pressable style={[styles.primaryButton, isBusy && styles.disabledButton]} onPress={() => void onLogin()} disabled={isBusy}>
         <Text style={styles.primaryButtonText}>{isBusy ? 'Connecting...' : 'Connect'}</Text>
       </Pressable>
@@ -699,7 +722,11 @@ function ThresholdField({
   )
 }
 
-async function loadGraphReadings(session: LluSession, connection: LluConnection): Promise<GlucoseReading[]> {
+async function loadGraphReadings(
+  session: LluSession,
+  connection: LluConnection,
+  clientVersion: string,
+): Promise<GlucoseReading[]> {
   if (connection.graphData?.length) {
     return mapGraphData(connection.graphData)
   }
@@ -709,7 +736,7 @@ async function loadGraphReadings(session: LluSession, connection: LluConnection)
       session.baseUrl,
       connection.patientId,
       session.token,
-      session.clientVersion,
+      clientVersion,
       session.accountId,
     )
     return mapGraphData(response.data.graphData ?? [])
@@ -725,6 +752,12 @@ function mergeLatest(readings: GlucoseReading[], latest: GlucoseReading): Glucos
   return exists ? readings : [...readings, latest].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
 }
 
+function isRejectedSessionError(error: unknown): boolean {
+  return error instanceof LluError
+    && error.code === LluErrorCode.AUTH_FAILED
+    && (error.httpStatus === 401 || error.httpStatus === 403)
+}
+
 function formatLluError(error: unknown): string {
   if (error instanceof LluError) {
     switch (error.code) {
@@ -738,6 +771,11 @@ function formatLluError(error: unknown): string {
         return error.message
       case LluErrorCode.NO_CONNECTIONS:
         return 'No LibreLinkUp patients found.'
+      case LluErrorCode.AUTH_FAILED:
+        if (error.httpStatus === 401 || error.httpStatus === 403) {
+          return 'LibreLinkUp rejected the session. Re-enter password and connect again.'
+        }
+        return error.message
       default:
         return error.message
     }

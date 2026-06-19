@@ -38,7 +38,7 @@ export interface UiStatus {
 export const DEFAULT_MOBILE_SETTINGS: MobileSettings = {
   glucoseUnit: 'mg/dL',
   lluRegion: 'ru',
-  lluClientVersion: '4.12.0',
+  lluClientVersion: '4.17.0',
   lluPollingIntervalSec: 60,
   lluSelectedPatientId: null,
   alarmThresholds: { ...DEFAULT_ALARM_THRESHOLDS },
