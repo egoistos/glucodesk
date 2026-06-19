@@ -3,7 +3,7 @@
 Date: 2026-06-19.
 
 This repo is prepared for iOS builds through Expo EAS from Windows. The mobile app lives in
-`apps/mobile` and uses Expo SDK 56.
+`apps/mobile` and currently uses Expo SDK 54 for compatibility with the installed iPhone Expo Go client.
 
 ## Current Build Profiles
 
