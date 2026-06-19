@@ -4,6 +4,7 @@
   "description": "Desktop glucose monitor for LibreLinkUp",
   "main": "out/main/index.js",
   "workspaces": [
+    "apps/*",
     "packages/*"
   ],
   "author": "GlucoDesk",
@@ -11,6 +12,8 @@
   "scripts": {
     "dev": "electron-vite dev",
     "build": "npm run build -w @glucodesk/shared-core && electron-vite build",
+    "mobile:start": "npm run start -w @glucodesk/mobile",
+    "mobile:typecheck": "npm run build -w @glucodesk/shared-core && npm run typecheck -w @glucodesk/mobile",
     "preview": "electron-vite preview",
     "dist": "npm run build && electron-builder",
     "dist:win": "npm run build && electron-builder --win",
