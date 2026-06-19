@@ -4,8 +4,7 @@ import type { ReactElement } from 'react'
 import {
   ActivityIndicator,
   AppState,
-  KeyboardAvoidingView,
-  Platform,
+  LogBox,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -63,6 +62,12 @@ const ZONE_COLORS: Record<GlucoseZone | 'inRange', string> = {
   urgentHigh: '#dc2626',
   stale: '#64748b',
 }
+
+LogBox.ignoreLogs([
+  'expo-notifications: Android Push notifications',
+  '`expo-notifications` functionality is not fully supported in Expo Go',
+  'SafeAreaView has been deprecated',
+])
 
 export default function App(): ReactElement {
   const { width } = useWindowDimensions()
@@ -308,7 +313,7 @@ export default function App(): ReactElement {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="dark" />
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboard}>
+      <View style={styles.screen}>
         <View style={styles.header}>
           <View>
             <Text style={styles.brand}>GlucoDesk</Text>
@@ -346,6 +351,7 @@ export default function App(): ReactElement {
               selectedPatientId={settings.lluSelectedPatientId}
               session={session}
               settings={settings}
+              onOpenConnection={() => setActiveTab('connection')}
               updateSettings={updateSettings}
             />
           )}
@@ -379,7 +385,7 @@ export default function App(): ReactElement {
             />
           )}
         </ScrollView>
-      </KeyboardAvoidingView>
+      </View>
     </SafeAreaView>
   )
 }
@@ -395,6 +401,7 @@ interface CurrentViewProps {
   selectedPatientId: string | null
   session: LluSession | null
   settings: MobileSettings
+  onOpenConnection: () => void
   updateSettings: (patch: Partial<MobileSettings>) => Promise<void>
 }
 
@@ -409,6 +416,7 @@ function CurrentView({
   selectedPatientId,
   session,
   settings,
+  onOpenConnection,
   updateSettings,
 }: CurrentViewProps): ReactElement {
   if (!session) {
@@ -416,6 +424,9 @@ function CurrentView({
       <View style={styles.emptyState}>
         <Text style={styles.emptyTitle}>Connect LibreLinkUp</Text>
         <Text style={styles.emptyText}>Use the Connection tab to sign in and start collecting readings.</Text>
+        <Pressable style={styles.primaryButton} onPress={onOpenConnection}>
+          <Text style={styles.primaryButtonText}>Open Connection</Text>
+        </Pressable>
       </View>
     )
   }
@@ -750,7 +761,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8fafc',
   },
-  keyboard: {
+  screen: {
     flex: 1,
   },
   header: {

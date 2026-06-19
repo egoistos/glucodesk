@@ -1,14 +1,24 @@
-import * as Notifications from 'expo-notifications'
 import { toDisplayValue, type GlucoseAlarmEvent, type GlucoseUnit } from '@glucodesk/shared-core'
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-})
+type ExpoNotifications = typeof import('expo-notifications')
+
+let notificationsModulePromise: Promise<ExpoNotifications> | null = null
+
+async function getNotifications(): Promise<ExpoNotifications> {
+  notificationsModulePromise ??= import('expo-notifications').then((notifications) => {
+    notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+      }),
+    })
+    return notifications
+  })
+
+  return notificationsModulePromise
+}
 
 const TITLES: Record<GlucoseAlarmEvent['type'], string> = {
   urgentHigh: 'Urgent high glucose',
@@ -19,6 +29,7 @@ const TITLES: Record<GlucoseAlarmEvent['type'], string> = {
 }
 
 export async function ensureNotificationPermissions(): Promise<boolean> {
+  const Notifications = await getNotifications()
   const current = await Notifications.getPermissionsAsync()
   if (current.granted) return true
 
@@ -30,6 +41,7 @@ export async function showAlarmNotification(event: GlucoseAlarmEvent, unit: Gluc
   const granted = await ensureNotificationPermissions()
   if (!granted) return
 
+  const Notifications = await getNotifications()
   await Notifications.scheduleNotificationAsync({
     content: {
       title: TITLES[event.type],
