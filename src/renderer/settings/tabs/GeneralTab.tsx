@@ -19,6 +19,12 @@ export function GeneralTab({ settings, onSave, isSaving }: Props): JSX.Element {
     await onSave({ autostart, language, lluPollingIntervalSec: pollingInterval })
   }
 
+  const handleExportLogs = async (): Promise<void> => {
+    const result = await window.glucodesk.exportLogs()
+    setLogMsg(result.success ? t('general.logsExported') : t('general.logsError'))
+    setTimeout(() => setLogMsg(''), 3000)
+  }
+
   return (
     <div className="space-y-4">
       <label className="flex items-center gap-2.5 cursor-pointer">
@@ -60,11 +66,7 @@ export function GeneralTab({ settings, onSave, isSaving }: Props): JSX.Element {
 
       <div className="flex items-center gap-3">
         <button
-          onClick={async () => {
-            const result = await window.glucodesk.exportLogs()
-            setLogMsg(result.success ? t('general.logsExported') : t('general.logsError'))
-            setTimeout(() => setLogMsg(''), 3000)
-          }}
+          onClick={() => { void handleExportLogs() }}
           className="px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-xs transition-colors"
         >
           {t('general.exportLogs')}

@@ -1,4 +1,5 @@
 import log from 'electron-log'
+import { applyCalibrationOffset, calculateCalibrationOffset } from '@glucodesk/shared-core'
 import { getSettings, updateSettings } from '../store/settings'
 
 // ============================================================
@@ -18,8 +19,7 @@ import { getSettings, updateSettings } from '../store/settings'
 export function applyCalibration(sensorValueMgdl: number): number {
   const settings = getSettings()
   const offset = settings.calibrationOffset ?? 0
-  if (offset === 0) return sensorValueMgdl
-  return Math.max(0, sensorValueMgdl + offset)
+  return applyCalibrationOffset(sensorValueMgdl, offset)
 }
 
 /**
@@ -28,7 +28,7 @@ export function applyCalibration(sensorValueMgdl: number): number {
  * @param sensorValueMgdl — current sensor reading, in mg/dL
  */
 export function calibrate(meterValueMgdl: number, sensorValueMgdl: number): number {
-  const offset = meterValueMgdl - sensorValueMgdl
+  const offset = calculateCalibrationOffset(meterValueMgdl, sensorValueMgdl)
   updateSettings({ calibrationOffset: offset })
   log.info(`[Calibration] Set offset: ${offset} mg/dL (meter: ${meterValueMgdl}, sensor: ${sensorValueMgdl})`)
   return offset

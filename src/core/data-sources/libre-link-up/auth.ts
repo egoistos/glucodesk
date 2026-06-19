@@ -1,5 +1,5 @@
 import log from 'electron-log'
-import { login, REGION_BASE_URL, extractUserIdFromToken, type LoginResult } from './client'
+import { login, extractUserIdFromToken, type LoginResult } from './client'
 import { getSettings, savePassword, loadPassword, updateSettings } from '../../store/settings'
 import { LluError, LluErrorCode } from './types'
 

@@ -3,11 +3,14 @@
   "version": "0.1.0",
   "description": "Desktop glucose monitor for LibreLinkUp",
   "main": "out/main/index.js",
+  "workspaces": [
+    "packages/*"
+  ],
   "author": "GlucoDesk",
   "license": "MIT",
   "scripts": {
     "dev": "electron-vite dev",
-    "build": "electron-vite build",
+    "build": "npm run build -w @glucodesk/shared-core && electron-vite build",
     "preview": "electron-vite preview",
     "dist": "npm run build && electron-builder",
     "dist:win": "npm run build && electron-builder --win",

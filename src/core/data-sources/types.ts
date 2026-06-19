@@ -1,4 +1,4 @@
-import type { GlucoseReading } from '../../renderer/shared/types'
+import type { GlucoseReading } from '@glucodesk/shared-core'
 
 // ============================================================
 // Abstract DataSource interface — allows adding Nightscout (Phase 2)

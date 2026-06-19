@@ -1,7 +1,7 @@
 import { Notification } from 'electron'
 import log from 'electron-log'
 import type { AlarmEvent } from '../../preload/ipc-types'
-import { toDisplayValue } from '../../renderer/shared/types'
+import { toDisplayValue } from '@glucodesk/shared-core'
 import { getSettings } from '../store/settings'
 
 // ============================================================
@@ -22,6 +22,12 @@ const ALARM_DESCRIPTIONS: Record<AlarmEvent['type'], string> = {
   low: 'Blood glucose is below target range.',
   urgentLow: 'Blood glucose is critically low!',
   stale: 'No recent glucose data received.',
+}
+
+let notificationClickCallback: (() => void) | null = null
+
+export function setNotificationClickCallback(callback: () => void): void {
+  notificationClickCallback = callback
 }
 
 export function showAlarmNotification(event: AlarmEvent): void {
@@ -51,8 +57,7 @@ export function showAlarmNotification(event: AlarmEvent): void {
 
   notification.on('click', () => {
     log.info('[Notification] Clicked — snoozing alarm')
-    const { snoozeAlarm } = require('./engine')
-    snoozeAlarm()
+    notificationClickCallback?.()
   })
 
   notification.show()

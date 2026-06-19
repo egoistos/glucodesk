@@ -1,5 +1,4 @@
-import type { GlucoseZone } from '../../shared/types'
-import { ZONE_COLORS } from '../../shared/types'
+import { ZONE_COLORS, type GlucoseZone } from '@glucodesk/shared-core'
 
 interface Props {
   value: number

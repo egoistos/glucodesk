@@ -1,21 +1,9 @@
-import { TrendDirection, type GlucoseReading } from '../../../renderer/shared/types'
+import { mapLibreTrendArrow, type GlucoseReading } from '@glucodesk/shared-core'
 import type { LluGlucoseMeasurement, LluConnection } from './types'
 
 // ============================================================
 // Mapper: LLU API responses → GlucoseReading domain objects
 // ============================================================
-
-/**
- * Maps LLU TrendArrow (1–5) to our TrendDirection enum.
- * LLU: 1=falling fast, 2=falling, 3=stable, 4=rising, 5=rising fast
- * Our enum matches 1:1
- */
-function mapTrend(trendArrow: number): TrendDirection {
-  if (trendArrow >= 1 && trendArrow <= 5) {
-    return trendArrow as TrendDirection
-  }
-  return TrendDirection.UNKNOWN
-}
 
 /**
  * Maps a single LLU measurement to GlucoseReading
@@ -28,7 +16,7 @@ export function mapMeasurement(m: LluGlucoseMeasurement): GlucoseReading {
 
   return {
     value: m.ValueInMgPerDl ?? m.Value,
-    trend: mapTrend(m.TrendArrow),
+    trend: mapLibreTrendArrow(m.TrendArrow),
     timestamp,
     source: 'libre-link-up',
   }

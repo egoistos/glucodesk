@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { AppSettings } from '../../../preload/ipc-types'
-import type { AlarmThresholds, GlucoseUnit } from '../../shared/types'
+import { fromDisplayValue, toDisplayValue, type AlarmThresholds, type GlucoseUnit } from '@glucodesk/shared-core'
 import { t } from '../../shared/i18n'
 
 interface Props {
@@ -9,17 +9,6 @@ interface Props {
   isSaving: boolean
 }
 
-const MGDL_TO_MMOL = 1 / 18.0182
-
-function toDisplay(mgdl: number, unit: GlucoseUnit): string {
-  return unit === 'mmol/L' ? (mgdl * MGDL_TO_MMOL).toFixed(1) : String(Math.round(mgdl))
-}
-
-function fromDisplay(display: string, unit: GlucoseUnit): number {
-  const n = parseFloat(display)
-  if (isNaN(n)) return 0
-  return unit === 'mmol/L' ? Math.round(n / MGDL_TO_MMOL) : Math.round(n)
-}
 
 function ThresholdField({
   label,
@@ -34,12 +23,12 @@ function ThresholdField({
   unit: GlucoseUnit
   onChange: (mgdl: number) => void
 }): JSX.Element {
-  const [displayVal, setDisplayVal] = useState(toDisplay(value, unit))
+  const [displayVal, setDisplayVal] = useState(toDisplayValue(value, unit))
 
   const handleBlur = (): void => {
-    const mgdl = fromDisplay(displayVal, unit)
+    const mgdl = fromDisplayValue(displayVal, unit)
     onChange(mgdl)
-    setDisplayVal(toDisplay(mgdl, unit))
+    setDisplayVal(toDisplayValue(mgdl, unit))
   }
 
   return (

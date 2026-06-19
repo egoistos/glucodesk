@@ -44,7 +44,7 @@ src/
 
 Login flow:
 1. POST to `api.libreview.io` (global)
-2. If `{ redirect: true, region: 'ru' }` → retry on `api-ru.libreview.io`
+2. If `{ redirect: true, region: 'ru' }` → retry on `api.libreview.ru`
 3. Save detected region for subsequent requests
 
 ## Security

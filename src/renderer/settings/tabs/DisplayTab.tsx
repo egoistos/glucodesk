@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { AppSettings } from '../../../preload/ipc-types'
-import type { GlucoseUnit } from '../../shared/types'
+import type { GlucoseUnit } from '@glucodesk/shared-core'
 import { t } from '../../shared/i18n'
 
 interface Props {

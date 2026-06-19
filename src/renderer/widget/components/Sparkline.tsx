@@ -1,9 +1,11 @@
 import { useEffect, useRef } from 'react'
 import { createChart, LineStyle, type IChartApi, type ISeriesApi, type LineData } from 'lightweight-charts'
-import type { GlucoseReading } from '../../shared/types'
-import { ZONE_COLORS } from '../../shared/types'
-import type { AlarmThresholds } from '../../shared/types'
-import { classifyZone } from '../../shared/types'
+import {
+  ZONE_COLORS,
+  classifyZone,
+  type AlarmThresholds,
+  type GlucoseReading,
+} from '@glucodesk/shared-core'
 
 interface Props {
   readings: GlucoseReading[]
@@ -74,7 +76,7 @@ export function Sparkline({ readings, thresholds, width = 160, height = 40 }: Pr
       observer.observe(container, { childList: true, subtree: true })
     }
 
-    return () => {
+    return (): void => {
       chart.remove()
       chartRef.current = null
       seriesRef.current = null

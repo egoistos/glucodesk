@@ -13,14 +13,14 @@ import { getSettings } from '../core/store/settings'
 import { evaluateReading, setAlarmBroadcastCallback, clearAlarms } from '../core/alarms/engine'
 import { applyCalibration } from '../core/calibration'
 import { IPC_CHANNELS } from '../preload/ipc-types'
-import type { GlucoseReading } from '../renderer/shared/types'
+import type { GlucoseReading } from '@glucodesk/shared-core'
 
 // ============================================================
 // Main process entry point
 // ============================================================
 
 // Setup logging
-log.transports.file.resolvePathFn = () =>
+log.transports.file.resolvePathFn = (): string =>
   path.join(app.getPath('userData'), 'logs', 'glucodesk.log')
 log.transports.file.level = 'info'
 log.transports.console.level = 'debug'
@@ -42,7 +42,7 @@ app.on('second-instance', () => {
   }
 })
 
-app.on('ready', async () => {
+app.on('ready', () => {
   log.info(`[Main] GlucoDesk ${app.getVersion()} starting...`)
 
   // Init SQLite
@@ -128,8 +128,7 @@ async function fetchAndBroadcastGlucose(): Promise<void> {
 
     // Also persist graphData (12h history) if available
     // graphData comes from the connections endpoint directly
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const rawGraphData = (patient as any).graphData
+    const rawGraphData = patient.graphData
     if (Array.isArray(rawGraphData)) {
       const history = mapGraphData(rawGraphData)
       for (const r of history) {

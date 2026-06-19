@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { GlucoseReading } from '../../shared/types'
+import type { GlucoseReading } from '@glucodesk/shared-core'
 import type { ConnectionStatus } from '../../../preload/ipc-types'
 
 // ============================================================
@@ -79,7 +79,7 @@ export function useGlucoseData(): GlucoseDataState {
       setError(msg)
     })
 
-    return () => {
+    return (): void => {
       unsubGlucose()
       unsubStatus()
       unsubError()

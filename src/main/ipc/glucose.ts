@@ -9,17 +9,16 @@ import { getHistory, getLatestReading } from '../../core/store/history'
 import {
   authenticateWithCredentials,
   clearToken,
-  getRegion,
 } from '../../core/data-sources/libre-link-up/auth'
 import { getConnections } from '../../core/data-sources/libre-link-up/client'
 import { LluError, LluErrorCode } from '../../core/data-sources/libre-link-up/types'
-import { startPolling, stopPolling } from '../../core/scheduler/polling'
+import { stopPolling } from '../../core/scheduler/polling'
 import { createOrFocusSettingsWindow } from '../windows/settings'
 import { snoozeAlarm } from '../../core/alarms/engine'
 import { calibrate, resetCalibration, getCalibrationOffset } from '../../core/calibration'
 import { showWidget, hideWidget } from '../windows/widget'
 import { applyWidgetSettings } from '../windows/widget'
-import type { GlucoseReading } from '../../renderer/shared/types'
+import type { GlucoseReading } from '@glucodesk/shared-core'
 
 // ============================================================
 // IPC handlers — main process side

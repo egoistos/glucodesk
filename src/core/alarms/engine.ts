@@ -1,9 +1,8 @@
 import log from 'electron-log'
-import type { GlucoseReading, AlarmThresholds, GlucoseZone } from '../../renderer/shared/types'
-import { classifyZone } from '../../renderer/shared/types'
+import { classifyZone, type GlucoseReading, type GlucoseZone } from '@glucodesk/shared-core'
 import { getSettings } from '../store/settings'
 import { playAlarmSound, stopAlarmSound } from './sound'
-import { showAlarmNotification } from './notification'
+import { setNotificationClickCallback, showAlarmNotification } from './notification'
 import type { AlarmEvent } from '../../preload/ipc-types'
 
 // ============================================================
@@ -48,6 +47,8 @@ const ZONE_TO_EVENT_TYPE: Record<string, AlarmEvent['type']> = {
 
 // Callback to broadcast alarm to renderer
 let broadcastCallback: ((event: AlarmEvent) => void) | null = null
+
+setNotificationClickCallback(() => snoozeAlarm())
 
 export function setAlarmBroadcastCallback(cb: (event: AlarmEvent) => void): void {
   broadcastCallback = cb

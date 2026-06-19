@@ -2,7 +2,7 @@
 // IPC channel definitions — typed contracts between main/renderer
 // ============================================================
 
-import type { GlucoseReading, AlarmThresholds, StaleDataConfig, GlucoseUnit } from '../renderer/shared/types'
+import type { AlarmThresholds, StaleDataConfig, GlucoseUnit } from '@glucodesk/shared-core'
 
 // ---- Channel names ----
 
@@ -73,6 +73,7 @@ export interface AppSettings {
   widgetSize: 'compact' | 'normal' | 'large'
   widgetClickThrough: boolean
   widgetPosition: { x: number; y: number } | null
+  calibrationOffset: number
 
   // General
   autostart: boolean

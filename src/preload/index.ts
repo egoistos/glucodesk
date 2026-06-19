@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC_CHANNELS } from './ipc-types'
 import type {
+  IpcChannel,
   LluConnectRequest,
   LluConnectResponse,
   AppSettings,
@@ -8,20 +9,24 @@ import type {
   ConnectionStatus,
   AlarmEvent,
 } from './ipc-types'
-import type { GlucoseReading } from '../renderer/shared/types'
+import type { GlucoseReading } from '@glucodesk/shared-core'
 
 // ============================================================
 // Preload: exposes typed API to renderer via contextBridge
 // All IPC goes through this — no direct ipcRenderer in renderer
 // ============================================================
 
+function invoke<T>(channel: IpcChannel, ...args: unknown[]): Promise<T> {
+  return ipcRenderer.invoke(channel, ...args) as Promise<T>
+}
+
 const glucodeskAPI = {
   // ---- Glucose data ----
   getGlucose: (): Promise<GlucoseReading | null> =>
-    ipcRenderer.invoke(IPC_CHANNELS.GET_GLUCOSE),
+    invoke<GlucoseReading | null>(IPC_CHANNELS.GET_GLUCOSE),
 
   getHistory: (hours: number): Promise<GlucoseReading[]> =>
-    ipcRenderer.invoke(IPC_CHANNELS.GET_HISTORY, hours),
+    invoke<GlucoseReading[]>(IPC_CHANNELS.GET_HISTORY, hours),
 
   onGlucoseUpdate: (callback: (reading: GlucoseReading) => void): (() => void) => {
     const handler = (_event: Electron.IpcRendererEvent, reading: GlucoseReading): void =>
@@ -32,13 +37,13 @@ const glucodeskAPI = {
 
   // ---- Connection ----
   connectLlu: (request: LluConnectRequest): Promise<LluConnectResponse> =>
-    ipcRenderer.invoke(IPC_CHANNELS.CONNECT_LLU, request),
+    invoke<LluConnectResponse>(IPC_CHANNELS.CONNECT_LLU, request),
 
   disconnectLlu: (): Promise<void> =>
-    ipcRenderer.invoke(IPC_CHANNELS.DISCONNECT_LLU),
+    invoke<void>(IPC_CHANNELS.DISCONNECT_LLU),
 
   testConnection: (request: LluConnectRequest): Promise<LluConnectResponse> =>
-    ipcRenderer.invoke(IPC_CHANNELS.TEST_CONNECTION, request),
+    invoke<LluConnectResponse>(IPC_CHANNELS.TEST_CONNECTION, request),
 
   onConnectionStatus: (callback: (status: ConnectionStatus) => void): (() => void) => {
     const handler = (_event: Electron.IpcRendererEvent, status: ConnectionStatus): void =>
@@ -49,10 +54,10 @@ const glucodeskAPI = {
 
   // ---- Settings ----
   getSettings: (): Promise<AppSettings> =>
-    ipcRenderer.invoke(IPC_CHANNELS.GET_SETTINGS),
+    invoke<AppSettings>(IPC_CHANNELS.GET_SETTINGS),
 
   setSettings: (settings: PartialAppSettings): Promise<void> =>
-    ipcRenderer.invoke(IPC_CHANNELS.SET_SETTINGS, settings),
+    invoke<void>(IPC_CHANNELS.SET_SETTINGS, settings),
 
   // ---- Windows ----
   showSettings: (): void => ipcRenderer.send(IPC_CHANNELS.SHOW_SETTINGS),
@@ -61,17 +66,17 @@ const glucodeskAPI = {
 
   // ---- System ----
   setAutostart: (enabled: boolean): Promise<void> =>
-    ipcRenderer.invoke(IPC_CHANNELS.SET_AUTOSTART, enabled),
+    invoke<void>(IPC_CHANNELS.SET_AUTOSTART, enabled),
 
   getAppVersion: (): Promise<string> =>
-    ipcRenderer.invoke(IPC_CHANNELS.GET_APP_VERSION),
+    invoke<string>(IPC_CHANNELS.GET_APP_VERSION),
 
   exportLogs: (): Promise<{ success: boolean; path?: string; error?: string }> =>
-    ipcRenderer.invoke(IPC_CHANNELS.EXPORT_LOGS),
+    invoke<{ success: boolean; path?: string; error?: string }>(IPC_CHANNELS.EXPORT_LOGS),
 
   // ---- Alarms ----
   snoozeAlarm: (minutes?: number): Promise<void> =>
-    ipcRenderer.invoke(IPC_CHANNELS.SNOOZE_ALARM, minutes),
+    invoke<void>(IPC_CHANNELS.SNOOZE_ALARM, minutes),
 
   onAlarmTriggered: (callback: (event: AlarmEvent) => void): (() => void) => {
     const handler = (_event: Electron.IpcRendererEvent, alarmEvent: AlarmEvent): void =>
@@ -82,13 +87,13 @@ const glucodeskAPI = {
 
   // ---- Calibration ----
   calibrate: (meterMgdl: number, sensorMgdl: number): Promise<number> =>
-    ipcRenderer.invoke(IPC_CHANNELS.CALIBRATE, meterMgdl, sensorMgdl),
+    invoke<number>(IPC_CHANNELS.CALIBRATE, meterMgdl, sensorMgdl),
 
   resetCalibration: (): Promise<void> =>
-    ipcRenderer.invoke(IPC_CHANNELS.RESET_CALIBRATION),
+    invoke<void>(IPC_CHANNELS.RESET_CALIBRATION),
 
   getCalibrationOffset: (): Promise<number> =>
-    ipcRenderer.invoke(IPC_CHANNELS.GET_CALIBRATION),
+    invoke<number>(IPC_CHANNELS.GET_CALIBRATION),
 
   // ---- Settings updates ----
   onSettingsChanged: (callback: (settings: AppSettings) => void): (() => void) => {

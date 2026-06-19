@@ -16,9 +16,10 @@
     "outDir": "out",
     "baseUrl": ".",
     "paths": {
+      "@glucodesk/shared-core": ["packages/shared-core/src"],
       "@renderer/*": ["src/renderer/*"],
       "@shared/*": ["src/renderer/shared/*"]
     }
   },
-  "include": ["src/renderer/**/*", "src/preload/**/*"]
+  "include": ["src/renderer/**/*", "src/preload/**/*", "packages/shared-core/src/index.ts"]
 }

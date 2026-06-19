@@ -7,6 +7,7 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()],
     resolve: {
       alias: {
+        '@glucodesk/shared-core': resolve('packages/shared-core/src'),
         '@core': resolve('src/core'),
         '@main': resolve('src/main'),
       },
@@ -19,6 +20,11 @@ export default defineConfig({
   },
   preload: {
     plugins: [externalizeDepsPlugin()],
+    resolve: {
+      alias: {
+        '@glucodesk/shared-core': resolve('packages/shared-core/src'),
+      },
+    },
     build: {
       rollupOptions: {
         input: {
@@ -39,6 +45,7 @@ export default defineConfig({
     },
     resolve: {
       alias: {
+        '@glucodesk/shared-core': resolve('packages/shared-core/src'),
         '@renderer': resolve('src/renderer'),
         '@shared': resolve('src/renderer/shared'),
       },

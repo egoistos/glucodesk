@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { AppSettings } from '../../../preload/ipc-types'
-import { toDisplayValue } from '../../shared/types'
+import { fromDisplayValue, toDisplayValue } from '@glucodesk/shared-core'
 import { t } from '../../shared/i18n'
 
 interface Props {
@@ -9,9 +9,8 @@ interface Props {
   isSaving: boolean
 }
 
-const MGDL_TO_MMOL = 1 / 18.0182
 
-export function CalibrationTab({ settings, onSave, isSaving }: Props): JSX.Element {
+export function CalibrationTab({ settings, isSaving }: Props): JSX.Element {
   const unit = settings.glucoseUnit
   const [meterInput, setMeterInput] = useState('')
   const [sensorValue, setSensorValue] = useState<number | null>(null)
@@ -28,12 +27,7 @@ export function CalibrationTab({ settings, onSave, isSaving }: Props): JSX.Eleme
   const handleCalibrate = async (): Promise<void> => {
     if (!meterInput || sensorValue === null) return
 
-    let meterMgdl: number
-    if (unit === 'mmol/L') {
-      meterMgdl = Math.round(parseFloat(meterInput) / MGDL_TO_MMOL)
-    } else {
-      meterMgdl = Math.round(parseFloat(meterInput))
-    }
+    const meterMgdl = fromDisplayValue(meterInput, unit)
 
     const newOffset = await window.glucodesk.calibrate(meterMgdl, sensorValue)
     setOffset(newOffset)
@@ -49,9 +43,7 @@ export function CalibrationTab({ settings, onSave, isSaving }: Props): JSX.Eleme
     setTimeout(() => setMessage(''), 3000)
   }
 
-  const displayOffset = unit === 'mmol/L'
-    ? (offset * MGDL_TO_MMOL).toFixed(1)
-    : String(offset)
+  const displayOffset = toDisplayValue(offset, unit)
 
   const displaySensor = sensorValue !== null
     ? toDisplayValue(sensorValue, unit)

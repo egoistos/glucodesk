@@ -2,8 +2,13 @@ import { Tray, Menu, nativeImage, app } from 'electron'
 import log from 'electron-log'
 import { toggleWidget, showWidget } from './windows/widget'
 import { createOrFocusSettingsWindow } from './windows/settings'
-import type { GlucoseReading } from '../renderer/shared/types'
-import { toDisplayValue, TREND_ARROWS, TrendDirection, classifyZone } from '../renderer/shared/types'
+import {
+  toDisplayValue,
+  TREND_ARROWS,
+  TrendDirection,
+  classifyZone,
+  type GlucoseReading,
+} from '@glucodesk/shared-core'
 import { getSettings } from '../core/store/settings'
 
 // ============================================================
@@ -89,16 +94,16 @@ function updateTrayMenu(reading?: GlucoseReading | null): void {
     { type: 'separator' },
     {
       label: 'Show / Hide Widget',
-      click: () => toggleWidget(),
+      click: (): void => toggleWidget(),
     },
     {
       label: 'Settings...',
-      click: () => createOrFocusSettingsWindow(),
+      click: (): void => createOrFocusSettingsWindow(),
     },
     { type: 'separator' },
     {
       label: 'Quit GlucoDesk',
-      click: () => {
+      click: (): void => {
         app.quit()
       },
     },

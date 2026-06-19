@@ -2,8 +2,7 @@ import Database from 'better-sqlite3'
 import { app } from 'electron'
 import path from 'path'
 import log from 'electron-log'
-import type { GlucoseReading } from '../../renderer/shared/types'
-import { TrendDirection } from '../../renderer/shared/types'
+import { TrendDirection, type GlucoseReading } from '@glucodesk/shared-core'
 
 // ============================================================
 // History store — SQLite via better-sqlite3

@@ -82,6 +82,7 @@ export interface LluConnection {
   targetLow: number
   glucoseMeasurement: LluGlucoseMeasurement
   glucoseItem: LluGlucoseMeasurement
+  graphData?: LluGlucoseMeasurement[]
   glucoseAlarm?: unknown
   patientDevice: LluPatientDevice
   created: number

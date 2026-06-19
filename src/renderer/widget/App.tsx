@@ -1,24 +1,18 @@
 import { useState, useEffect } from 'react'
 import { useGlucoseData } from './hooks/useGlucoseData'
-import { GlucoseValue } from './components/GlucoseValue'
-import { TrendArrow, Delta, TimeAgo } from './components/TrendArrow'
+import { TimeAgo } from './components/TrendArrow'
 import { Sparkline } from './components/Sparkline'
 import { StaleIndicator } from './components/StaleIndicator'
 import {
   classifyZone,
+  DEFAULT_ALARM_THRESHOLDS,
   ZONE_COLORS,
   toDisplayValue,
   type AlarmThresholds,
   type GlucoseUnit,
-} from '../shared/types'
+} from '@glucodesk/shared-core'
 import { setLang, t } from '../shared/i18n'
 
-const DEFAULT_THRESHOLDS: AlarmThresholds = {
-  urgentHigh: 250,
-  high: 180,
-  low: 70,
-  urgentLow: 55,
-}
 
 type WidgetSize = 'compact' | 'normal' | 'large'
 
@@ -59,7 +53,7 @@ const SIZE_CONFIG: Record<WidgetSize, SizeConfig> = {
 export default function WidgetApp(): JSX.Element {
   const { current, history, isStale, delta, error } = useGlucoseData()
   const [unit, setUnit] = useState<GlucoseUnit>('mg/dL')
-  const [thresholds, setThresholds] = useState<AlarmThresholds>(DEFAULT_THRESHOLDS)
+  const [thresholds, setThresholds] = useState<AlarmThresholds>(DEFAULT_ALARM_THRESHOLDS)
   const [calOffset, setCalOffset] = useState(0)
   const [widgetSize, setWidgetSize] = useState<WidgetSize>('normal')
 
@@ -78,7 +72,7 @@ export default function WidgetApp(): JSX.Element {
       setCalOffset(s.calibrationOffset ?? 0)
       setWidgetSize(s.widgetSize)
     })
-    return () => unsub()
+    return (): void => unsub()
   }, [])
 
   const openSettings = (): void => { window.glucodesk.showSettings() }
@@ -142,7 +136,7 @@ export default function WidgetApp(): JSX.Element {
             </span>
             {delta !== null && (
               <span className="font-medium tabular-nums" style={{ color, fontSize: cfg.deltaFontSize, opacity: 0.85 }}>
-                {delta > 0 ? '+' : ''}{unit === 'mmol/L' ? (delta / 18.0182).toFixed(1) : Math.round(delta)}
+                {delta > 0 ? '+' : ''}{toDisplayValue(delta, unit)}
               </span>
             )}
           </>

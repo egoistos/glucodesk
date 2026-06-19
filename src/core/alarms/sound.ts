@@ -1,4 +1,5 @@
 import path from 'path'
+import { BrowserWindow } from 'electron'
 import log from 'electron-log'
 
 // ============================================================
@@ -40,7 +41,6 @@ export function playAlarmSound(urgent: boolean): void {
   // Use electron's BrowserWindow to play audio
   // We send a message to the widget window to play sound via Web Audio API
   try {
-    const { BrowserWindow } = require('electron')
     const windows = BrowserWindow.getAllWindows()
     if (windows.length > 0) {
       windows[0].webContents.executeJavaScript(`
@@ -56,14 +56,13 @@ export function playAlarmSound(urgent: boolean): void {
       `).catch((e: Error) => log.warn(`[Sound] executeJavaScript failed: ${e.message}`))
     }
   } catch (e) {
-    log.warn(`[Sound] Failed to play audio: ${e}`)
+    log.warn(`[Sound] Failed to play audio: ${String(e)}`)
   }
 
   // Repeat alarm sound
   audioProcess = setInterval(() => {
     if (!isPlaying) return
     try {
-      const { BrowserWindow } = require('electron')
       const windows = BrowserWindow.getAllWindows()
       if (windows.length > 0) {
         windows[0].webContents.executeJavaScript(`
@@ -92,7 +91,6 @@ export function stopAlarmSound(): void {
 
   // Stop audio in renderer
   try {
-    const { BrowserWindow } = require('electron')
     const windows = BrowserWindow.getAllWindows()
     if (windows.length > 0) {
       windows[0].webContents.executeJavaScript(`

@@ -2,6 +2,7 @@ import log from 'electron-log'
 import Store from 'electron-store'
 import { safeStorage } from 'electron'
 import type { AppSettings } from '../../preload/ipc-types'
+import { DEFAULT_ALARM_THRESHOLDS, DEFAULT_STALE_DATA_CONFIG } from '@glucodesk/shared-core'
 
 // ============================================================
 // Settings store — persists all app config via electron-store
@@ -16,17 +17,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   lluPollingIntervalSec: 60,
   lluSelectedPatientId: null,
 
-  alarmThresholds: {
-    urgentHigh: 250,
-    high: 180,
-    low: 70,
-    urgentLow: 55,
-  },
+  alarmThresholds: { ...DEFAULT_ALARM_THRESHOLDS },
 
-  staleDataConfig: {
-    warningMinutes: 15,
-    urgentMinutes: 30,
-  },
+  staleDataConfig: { ...DEFAULT_STALE_DATA_CONFIG },
 
   alarmSoundEnabled: true,
   alarmNotificationsEnabled: true,
@@ -35,13 +28,14 @@ const DEFAULT_SETTINGS: AppSettings = {
   widgetSize: 'normal',
   widgetClickThrough: false,
   widgetPosition: null,
+  calibrationOffset: 0,
 
   autostart: false,
   language: 'ru',
 }
 
 // Schema for electron-store validation
-const schema = {
+const schema: Store.Schema<AppSettings> = {
   lluEmail: { type: 'string', default: '' },
   lluPasswordEncrypted: { type: 'string', default: '' },
   lluRegion: { type: 'string', default: 'ru' },
@@ -72,14 +66,14 @@ const schema = {
   widgetSize: { type: 'string', enum: ['compact', 'normal', 'large'], default: 'normal' },
   widgetClickThrough: { type: 'boolean', default: false },
   widgetPosition: { type: ['object', 'null'], default: null },
+  calibrationOffset: { type: 'number', default: 0 },
   autostart: { type: 'boolean', default: false },
   language: { type: 'string', enum: ['ru', 'en'], default: 'ru' },
-} as const
+}
 
 const store = new Store<AppSettings>({
   name: 'glucodesk-settings',
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  schema: schema as any,
+  schema,
   defaults: DEFAULT_SETTINGS,
 })
 

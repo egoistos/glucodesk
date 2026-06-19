@@ -25,7 +25,7 @@ export default function SettingsApp(): JSX.Element {
       setLang(s.language)
       setSettings(s)
     })
-    return () => unsub()
+    return (): void => unsub()
   }, [])
 
   const handleSave = async (partial: Partial<AppSettings>): Promise<void> => {
