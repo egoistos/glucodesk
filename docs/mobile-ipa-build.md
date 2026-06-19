@@ -5,6 +5,12 @@ Date: 2026-06-19.
 This repo is prepared for iOS builds through Expo EAS from Windows. The mobile app lives in
 `apps/mobile` and currently uses Expo SDK 54 for compatibility with the installed iPhone Expo Go client.
 
+Current code status:
+
+- Expo Go path is usable for the JavaScript MVP and live LibreLinkUp testing.
+- Apple Health and Dynamic Island / Lock Screen code is present, but native-only.
+- EAS setup is configured, but post-EAS build/submit steps are intentionally not being run yet.
+
 ## Current Build Profiles
 
 `apps/mobile/eas.json` defines:
@@ -122,3 +128,13 @@ Current native config:
 - `@kingstinct/react-native-healthkit` with HealthKit usage descriptions.
 - `expo-live-activity` with `NSSupportsLiveActivities` and push updates disabled for now.
 - No backend/APNs live update pipeline yet, so Lock Screen updates are driven by app foreground/app-active refreshes.
+
+## Next Project Handoff
+
+Use `docs/next-chat-handoff.md` as the prompt and plan for the next Codex chat.
+The next practical increment is to harden the native-only Apple surfaces before running any EAS build:
+
+- verify native config with `expo config --type introspect`;
+- decide whether `expo-live-activity` is acceptable long-term or should be replaced with a maintained native module/custom Expo module;
+- add a focused mobile test harness for adapter fallback behavior;
+- only then run a development EAS build when the user explicitly approves build/signing work.

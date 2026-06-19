@@ -6,6 +6,25 @@
 `desktop + mobile + shared-core` и довести мобильную ветку до готового iOS `.ipa`,
 собираемого с Windows через Expo EAS Build.
 
+## Текущий прогресс на 2026-06-19
+
+Выполнено:
+
+- `packages/shared-core` создан и подключен к desktop/mobile.
+- Desktop Electron app продолжает собираться и тестироваться.
+- `apps/mobile` создан на Expo SDK 54 и React Native.
+- Mobile MVP работает в Expo Go: LibreLinkUp login, secure session, current glucose, trend, delta, stale state, history, chart, settings, foreground polling, local alarms.
+- EAS profiles добавлены в `apps/mobile/eas.json`, но build/submit шаги после setup пока не выполняются.
+- Apple Health write-sync wiring добавлен через `@kingstinct/react-native-healthkit`.
+- Dynamic Island / Lock Screen Live Activity wiring добавлен через `expo-live-activity`.
+
+Ограничения текущего состояния:
+
+- Apple Health и Live Activity не работают в Expo Go, потому что требуют custom iOS development/internal build.
+- HealthKit/ActivityKit поверхности пока проверены статически: `mobile:typecheck`, `expo-doctor`, `expo export --platform ios`.
+- Без backend/APNs Lock Screen freshness ограничен foreground/app-active refresh на iOS.
+- Widgets, watchOS и backend realtime-poller пока не начаты.
+
 ## Ключевое решение
 
 Не портируем Electron в iOS. Делаем новый iPhone-клиент на Expo/React Native и
@@ -636,33 +655,35 @@ eas submit --platform ios
 
 ### I17. HealthKit
 
-Статус: начало `iPhone-testable-on-Windows`, финиш `Mac-likely-required`.
+Статус: начато, `iPhone-testable-on-Windows`; финальная отладка может быть `Mac-likely-required`.
 
 Результат:
 
-- permission flow;
-- read/write strategy;
-- mapping glucose values;
-- user-facing consent and settings;
-- native config/plugin boundary.
+- добавлен native-gated adapter `apps/mobile/src/lib/appleHealth.ts`;
+- добавлены Settings consent/toggle/status;
+- добавлена запись LibreLinkUp glucose sample в Apple Health как blood glucose quantity;
+- добавлены HealthKit usage descriptions и config plugin;
+- Expo Go fallback показывает custom-build-required status вместо падения.
 
 Проверка:
 
-- permissions on physical iPhone;
-- write sample;
-- read sample;
-- no silent writes without explicit consent.
+- `npm run mobile:typecheck`;
+- `npx expo-doctor`;
+- `npx expo export --platform ios`;
+- затем, после явного разрешения пользователя на EAS build: permissions on physical iPhone, write sample, no silent writes without explicit consent.
 
 ### I18. Live Activity
 
-Статус: начало `iPhone-testable-on-Windows`, финиш `Mac-likely-required`.
+Статус: начато, `iPhone-testable-on-Windows`; финальная отладка может быть `Mac-likely-required`.
 
 Результат:
 
-- display model: value, trend, delta, freshness;
-- deep link into app;
-- ActivityKit integration;
-- optional push-updated Live Activity contract.
+- добавлен native-gated adapter `apps/mobile/src/lib/liveActivity.ts`;
+- добавлены Settings toggle/status и Stop Live Activity action;
+- display model содержит value, unit, trend, delta, freshness;
+- добавлен deep link `glucodesk://current`;
+- добавлен `NSSupportsLiveActivities` и config plugin;
+- push updates выключены до появления backend/APNs.
 
 Без backend этот surface будет ограничен надежностью iOS background execution.
 
@@ -753,28 +774,37 @@ Dynamic Island, watch surfaces.
 - hardening;
 - подготовка TestFlight production profile.
 
-## Готовый промт для следующего шага
+## Готовый промпт для следующего чата
 
 ```text
-Стартуем Sprint 0+1 в H:\Dev\glucodesk.
+Продолжаем GlucoDesk в H:\Dev\glucodesk.
 
-Цель: подготовить репозиторий к mobile/shared-core работе и сделать первый безопасный инкремент shared-core без поломки desktop.
+Контекст:
+- desktop Electron app должен оставаться рабочим;
+- shared-core уже подключен;
+- Expo mobile MVP уже работает в Expo Go;
+- EAS setup есть, но шаги build/submit/credentials пока не выполнять без явного разрешения;
+- Apple Health и Dynamic Island / Lock Screen Live Activity wiring уже добавлены, но в Expo Go они только показывают native-build-required fallback.
+
+Цель следующего инкремента:
+Захарднить native-only Apple surfaces до первого development/internal EAS build, не запуская сам EAS build.
 
 Сделай:
-1. Проверь текущее состояние git, не переписывай историю и не делай force push.
-2. Добавь top-level AGENTS.md с правилами проекта: desktop не ломать, Electron-зависимости не тащить в shared-core/mobile, использовать small vertical slices, после изменений запускать npm run build/npm test/npm run lint по возможности.
-3. Поправь README.md: текущий LLU RU flow должен говорить про api.libreview.ru, а не api-ru.libreview.io.
-4. Создай packages/shared-core как TypeScript package @glucodesk/shared-core.
-5. Вынеси туда только platform-neutral domain pieces: glucose types, units, zone classification, thresholds/defaults.
-6. Подключи desktop imports к shared-core минимально и аккуратно.
-7. Добавь focused tests на unit conversion и zone classification.
-8. Запусти доступные проверки и дай краткий отчет: что изменено, какие команды прошли/упали, что осталось в следующем инкременте.
+1. Проверь `git status --short --branch` и последние коммиты.
+2. Проверь документацию `README.md`, `docs/mobile-ipa-build.md`, `docs/mobile-ios-ipa-roadmap.md`, `docs/next-chat-handoff.md`.
+3. Проверь Expo native config без сборки: `npx expo config --type introspect` из `apps/mobile`.
+4. Убедись, что `@kingstinct/react-native-healthkit` entitlements/usage descriptions попадают в iOS config.
+5. Убедись, что Live Activity config содержит `NSSupportsLiveActivities` и не требует push updates.
+6. Добавь тестируемый JS-level fallback для native adapters, если это можно сделать без нативной сборки.
+7. Проверь, не создает ли `expo-live-activity` долгосрочный риск из-за deprecated package; предложи вариант: оставить на первый dev build или заменить на custom Expo module/maintained alternative.
+8. Запусти проверки: `npm run mobile:typecheck`, `npx expo-doctor`, `npx expo export --platform ios --output-dir dist-ci`, затем удалить `dist-ci`; после этого `npm run build`, `npm test -- --run`, `npm run lint`.
+9. Закоммить изменения и подготовь короткий отчет: что готово для dev build, какие риски остались, какой следующий шаг.
 
 Ограничения:
-- Не переносить весь desktop в apps/desktop в этом инкременте.
-- Не создавать mobile app пока shared-core не подключен обратно к desktop.
-- Не добавлять HealthKit, Live Activity, widgets, watchOS или backend.
-- Не коммитить secrets, токены, credentials, .env.
+- Не запускать EAS build/submit/credentials.
+- Не добавлять widgets, watchOS и backend/APNs без отдельного решения.
+- Не коммитить secrets, tokens, `.env`, `.p8`, `.p12`, `.mobileprovision`.
+- Не переписывать историю, не force push.
 ```
 
 ## Источники для текущих внешних допущений
