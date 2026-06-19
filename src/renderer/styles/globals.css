@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Drag region for frameless window */
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+/* Disable drag for interactive elements inside drag region */
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* Smooth glucose value transitions */
+.glucose-value {
+  transition: color 0.5s ease;
+}
+
+
+/* Hide TradingView branding in Lightweight Charts */
+.tv-lightweight-charts a[href*="tradingview"],
+.tv-lightweight-charts a[target="_blank"],
+div[data-ref] a,
+table td a[href*="tradingview"] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
