@@ -1,48 +1,29 @@
-import { createHash } from 'crypto'
+﻿import { createHash } from 'crypto'
 import log from 'electron-log'
 import {
+  buildLluHeaders,
+  GLOBAL_LLU_BASE_URL,
   LluError,
   LluErrorCode,
-  type LluLoginRequest,
-  type LluLoginResponse,
+  REGION_BASE_URL,
   type LluConnectionsResponse,
   type LluGraphResponse,
-} from './types'
+  type LluLoginRequest,
+  type LluLoginResponse,
+} from '@glucodesk/shared-core'
 
 // ============================================================
 // LibreLinkUp HTTP client
-// Key insight: api-ru.libreview.io does NOT exist.
-// RU users authenticate via api.libreview.io (global).
+// Key insight: api-ru.libreview.io does not exist.
+// RU users authenticate via api.libreview.ru.
 // ============================================================
 
-const GLOBAL_BASE_URL = 'https://api.libreview.io'
-
-// RU region uses a completely separate domain: api.libreview.ru (not api-ru.libreview.io)
-// This was discovered by intercepting RU app traffic — it's a different Abbott infrastructure
-const RU_BASE_URL = 'https://api.libreview.ru'
-
-// Regions with dedicated subdomains on libreview.io
-const REGIONS_WITH_SUBDOMAIN = new Set(['eu', 'eu2', 'us', 'de', 'fr', 'jp', 'au', 'ap', 'ae', 'ca', 'la'])
-
-export const REGION_BASE_URL = (region: string): string => {
-  const r = region.toLowerCase()
-  if (r === 'ru') return RU_BASE_URL
-  return REGIONS_WITH_SUBDOMAIN.has(r)
-    ? `https://api-${r}.libreview.io`
-    : GLOBAL_BASE_URL
-}
-
-const buildHeaders = (clientVersion: string, token?: string, accountId?: string): Record<string, string> => ({
-  'accept-encoding': 'gzip',
-  'cache-control': 'no-cache',
-  'connection': 'Keep-Alive',
-  'content-type': 'application/json',
-  'product': 'llu.android',
-  'version': clientVersion,
-  ...(token ? { 'authorization': `Bearer ${token}` } : {}),
-  // Required since Abbott API update Oct 2025: SHA-256 hash of user ID
-  ...(accountId ? { 'account-id': createHash('sha256').update(accountId).digest('hex') } : {}),
-})
+const buildHeaders = (clientVersion: string, token?: string, accountId?: string): Record<string, string> =>
+  buildLluHeaders({
+    clientVersion,
+    token,
+    accountIdHash: accountId ? createHash('sha256').update(accountId).digest('hex') : undefined,
+  })
 
 // Extract user ID from JWT token payload (base64 decoded)
 export function extractUserIdFromToken(token: string): string | null {
@@ -70,7 +51,6 @@ async function lluFetch<T>(
   try {
     const response = await fetch(url, options)
 
-    // HTTP-level rate limit
     if (response.status === 429) {
       const waitMs = BACKOFF_SEQUENCE[Math.min(attempt, BACKOFF_SEQUENCE.length - 1)]
       log.warn(`[LLU] HTTP 429. Waiting ${waitMs / 1000}s before retry...`)
@@ -85,17 +65,13 @@ async function lluFetch<T>(
       throw new LluError('Unexpected non-JSON response', LluErrorCode.RATE_LIMITED, response.status)
     }
 
-    // Parse JSON regardless of HTTP status — Abbott embeds errors in body
     const json = await response.json() as Record<string, unknown>
     log.info(`[LLU] Response status field: ${json['status'] as number}`)
 
-    // Abbott uses status field inside JSON for errors too
     const bodyStatus = json['status'] as number | undefined
 
-    // Account locked — throw immediately, NEVER auto-retry
-    // Each retry resets Abbott's lockout counter, making it worse
     if (bodyStatus === 429) {
-      const lockoutData = (json['data'] as Record<string, unknown> | undefined)
+      const lockoutData = json['data'] as Record<string, unknown> | undefined
       const lockoutSec = (lockoutData?.['lockout'] as number | undefined) ?? 300
       const failures = (lockoutData?.['failures'] as number | undefined) ?? 0
       log.warn(`[LLU] Account locked: ${failures} failures, lockout ${lockoutSec}s. Not retrying.`)
@@ -124,8 +100,6 @@ async function lluFetch<T>(
   }
 }
 
-// ---- Login ----
-
 export interface LoginResult {
   token: string
   expires: number
@@ -138,12 +112,9 @@ export async function login(
   clientVersion: string,
   preferredRegion?: string,
 ): Promise<LoginResult> {
-  // For RU: go directly to api.libreview.ru
-  // For known regions with subdomains: go to api-{region}.libreview.io
-  // Otherwise: try global api.libreview.io
   const startUrl = preferredRegion
     ? `${REGION_BASE_URL(preferredRegion)}/llu/auth/login`
-    : `${GLOBAL_BASE_URL}/llu/auth/login`
+    : `${GLOBAL_LLU_BASE_URL}/llu/auth/login`
 
   log.info(`[LLU] Login attempt on ${startUrl}`)
 
@@ -153,7 +124,6 @@ export async function login(
     body: JSON.stringify(credentials),
   })
 
-  // Handle redirect → retry on regional endpoint
   if ('data' in response && response.data && 'redirect' in response.data && response.data.redirect) {
     const region = response.data.region
     log.info(`[LLU] Redirected to region: ${region}`)
@@ -166,7 +136,7 @@ export async function login(
   }
 
   const region = preferredRegion ?? 'eu'
-  const usedBaseUrl = preferredRegion ? REGION_BASE_URL(preferredRegion) : GLOBAL_BASE_URL
+  const usedBaseUrl = preferredRegion ? REGION_BASE_URL(preferredRegion) : GLOBAL_LLU_BASE_URL
   return extractLoginResult(response, region, usedBaseUrl)
 }
 
@@ -190,12 +160,9 @@ function extractLoginResult(response: LluLoginResponse, region: string, baseUrl:
     return { token, expires, region, baseUrl }
   }
 
-  // Log full response for debugging unknown formats
   log.error(`[LLU] Unknown response format: ${JSON.stringify(response).slice(0, 300)}`)
   throw new LluError('Unexpected login response format', LluErrorCode.PARSE_ERROR)
 }
-
-// ---- Connections ----
 
 export async function getConnections(
   baseUrl: string,
@@ -210,8 +177,6 @@ export async function getConnections(
   log.info(`[LLU] Connections raw: ${JSON.stringify(result).slice(0, 500)}`)
   return result
 }
-
-// ---- Graph data ----
 
 export async function getGraphData(
   baseUrl: string,
