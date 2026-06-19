@@ -45,6 +45,8 @@ import {
 } from './src/lib/mobileDatabase'
 import { clearSession, loadSession, saveSession } from './src/lib/secureSession'
 import { ensureNotificationPermissions, showAlarmNotification } from './src/lib/notifications'
+import { requestAppleHealthAccess, writeAppleHealthGlucose } from './src/lib/appleHealth'
+import { stopGlucoseLiveActivity, updateGlucoseLiveActivity } from './src/lib/liveActivity'
 import { DEFAULT_MOBILE_SETTINGS, type LluSession, type MobileSettings, type MobileTab, type UiStatus } from './src/types'
 
 const TABS: Array<{ id: MobileTab; label: string }> = [
@@ -82,6 +84,8 @@ export default function App(): ReactElement {
   const [region, setRegion] = useState(DEFAULT_MOBILE_SETTINGS.lluRegion)
   const [isBusy, setIsBusy] = useState(false)
   const [status, setStatus] = useState<UiStatus>({ tone: 'idle', message: 'Ready' })
+  const [appleHealthStatus, setAppleHealthStatus] = useState<UiStatus>({ tone: 'idle', message: 'Apple Health sync is off.' })
+  const [liveActivityStatus, setLiveActivityStatus] = useState<UiStatus>({ tone: 'idle', message: 'Live Activity is off.' })
   const alarmRef = useRef<{
     lastFiredZone: GlucoseZone | null
     snoozes: Map<string, AlarmSnoozeState>
@@ -149,9 +153,38 @@ export default function App(): ReactElement {
       await saveReadings(merged)
       await saveReading(latest)
       const nextHistory = await getHistory(12)
+      const nextDelta = calculateDelta(nextHistory)
+      const nextIsStale = isReadingStale(latest, effectiveSettings)
       setCurrent(latest)
       setHistory(nextHistory)
       evaluateAlarm(latest, effectiveSettings)
+
+      let surfacedSettings = effectiveSettings
+      if (
+        surfacedSettings.appleHealthSyncEnabled
+        && surfacedSettings.appleHealthLastSyncedAt !== latest.timestamp.getTime()
+      ) {
+        const healthResult = await writeAppleHealthGlucose(latest, surfacedSettings.glucoseUnit)
+        setAppleHealthStatus(statusFromCapability(healthResult))
+        if (healthResult.ok) {
+          surfacedSettings = {
+            ...surfacedSettings,
+            appleHealthLastSyncedAt: latest.timestamp.getTime(),
+          }
+          await persistSettings(surfacedSettings)
+        }
+      }
+
+      if (surfacedSettings.liveActivityEnabled) {
+        const activityResult = await updateGlucoseLiveActivity(
+          latest,
+          surfacedSettings.glucoseUnit,
+          nextDelta,
+          nextIsStale,
+        )
+        setLiveActivityStatus(statusFromCapability(activityResult))
+      }
+
       setStatus({ tone: 'ok', message: `Updated ${formatTime(latest.timestamp)}` })
     } catch (error) {
       if (isRejectedSessionError(error)) {
@@ -272,6 +305,11 @@ export default function App(): ReactElement {
 
   const handleDisconnect = async (): Promise<void> => {
     await clearSession()
+    if (settings.liveActivityEnabled) {
+      const stopResult = await stopGlucoseLiveActivity(current, settings.glucoseUnit, delta, isStale)
+      setLiveActivityStatus(statusFromCapability(stopResult, 'idle'))
+      await persistSettings({ ...settings, liveActivityEnabled: false })
+    }
     setSession(null)
     setConnections([])
     setCurrent(null)
@@ -289,6 +327,61 @@ export default function App(): ReactElement {
         [key]: fromDisplayValue(displayValue, settings.glucoseUnit),
       },
     })
+  }
+
+  const enableAppleHealthSync = async (): Promise<void> => {
+    const accessResult = await requestAppleHealthAccess()
+    setAppleHealthStatus(statusFromCapability(accessResult))
+    if (!accessResult.ok) {
+      await updateSettings({ appleHealthSyncEnabled: false })
+      return
+    }
+
+    const nextPatch: Partial<MobileSettings> = { appleHealthSyncEnabled: true }
+    if (current && settings.appleHealthLastSyncedAt !== current.timestamp.getTime()) {
+      const syncResult = await writeAppleHealthGlucose(current, settings.glucoseUnit)
+      setAppleHealthStatus(statusFromCapability(syncResult))
+      if (syncResult.ok) {
+        nextPatch.appleHealthLastSyncedAt = current.timestamp.getTime()
+      }
+    }
+
+    await updateSettings(nextPatch)
+  }
+
+  const handleAppleHealthToggle = async (enabled: boolean): Promise<void> => {
+    if (!enabled) {
+      setAppleHealthStatus({ tone: 'idle', message: 'Apple Health sync is off.' })
+      await updateSettings({ appleHealthSyncEnabled: false })
+      return
+    }
+
+    await enableAppleHealthSync()
+  }
+
+  const handleLiveActivityToggle = async (enabled: boolean): Promise<void> => {
+    if (!enabled) {
+      const stopResult = await stopGlucoseLiveActivity(current, settings.glucoseUnit, delta, isStale)
+      setLiveActivityStatus(statusFromCapability(stopResult, 'idle'))
+      await updateSettings({ liveActivityEnabled: false })
+      return
+    }
+
+    if (!current) {
+      setLiveActivityStatus({ tone: 'idle', message: 'Live Activity will start after the next reading.' })
+      await updateSettings({ liveActivityEnabled: true })
+      return
+    }
+
+    const activityResult = await updateGlucoseLiveActivity(current, settings.glucoseUnit, delta, isStale)
+    setLiveActivityStatus(statusFromCapability(activityResult))
+    await updateSettings({ liveActivityEnabled: activityResult.ok })
+  }
+
+  const handleStopLiveActivity = async (): Promise<void> => {
+    const stopResult = await stopGlucoseLiveActivity(current, settings.glucoseUnit, delta, isStale)
+    setLiveActivityStatus(statusFromCapability(stopResult, 'idle'))
+    await updateSettings({ liveActivityEnabled: false })
   }
 
   const snoozeCurrentZone = (): void => {
@@ -375,7 +468,13 @@ export default function App(): ReactElement {
           )}
           {activeTab === 'settings' && (
             <SettingsView
+              appleHealthStatus={appleHealthStatus}
+              liveActivityStatus={liveActivityStatus}
               settings={settings}
+              onAppleHealthConnect={enableAppleHealthSync}
+              onAppleHealthToggle={handleAppleHealthToggle}
+              onLiveActivityStop={handleStopLiveActivity}
+              onLiveActivityToggle={handleLiveActivityToggle}
               onNotificationsToggle={(enabled) => {
                 if (enabled) void ensureNotificationPermissions()
                 void updateSettings({ alarmNotificationsEnabled: enabled })
@@ -517,14 +616,32 @@ function HistoryView({ chartWidth, history, unit }: { chartWidth: number; histor
 }
 
 interface SettingsViewProps {
+  appleHealthStatus: UiStatus
+  liveActivityStatus: UiStatus
   settings: MobileSettings
+  onAppleHealthConnect: () => Promise<void>
+  onAppleHealthToggle: (enabled: boolean) => Promise<void>
+  onLiveActivityStop: () => Promise<void>
+  onLiveActivityToggle: (enabled: boolean) => Promise<void>
   onNotificationsToggle: (enabled: boolean) => void
   onSnooze: () => void
   onUpdate: (patch: Partial<MobileSettings>) => Promise<void>
   onUpdateThreshold: (key: keyof MobileSettings['alarmThresholds'], displayValue: string) => Promise<void>
 }
 
-function SettingsView({ settings, onNotificationsToggle, onSnooze, onUpdate, onUpdateThreshold }: SettingsViewProps): ReactElement {
+function SettingsView({
+  appleHealthStatus,
+  liveActivityStatus,
+  settings,
+  onAppleHealthConnect,
+  onAppleHealthToggle,
+  onLiveActivityStop,
+  onLiveActivityToggle,
+  onNotificationsToggle,
+  onSnooze,
+  onUpdate,
+  onUpdateThreshold,
+}: SettingsViewProps): ReactElement {
   return (
     <View style={styles.section}>
       <Text style={styles.blockTitle}>Display</Text>
@@ -566,6 +683,26 @@ function SettingsView({ settings, onNotificationsToggle, onSnooze, onUpdate, onU
       <Pressable style={styles.secondaryButton} onPress={onSnooze}>
         <Text style={styles.secondaryButtonText}>Snooze current zone 15 min</Text>
       </Pressable>
+
+      <Text style={styles.blockTitle}>Apple Health</Text>
+      <View style={styles.switchRow}>
+        <Text style={styles.label}>Sync glucose samples</Text>
+        <Switch value={settings.appleHealthSyncEnabled} onValueChange={(enabled) => void onAppleHealthToggle(enabled)} />
+      </View>
+      <Pressable style={styles.secondaryButton} onPress={() => void onAppleHealthConnect()}>
+        <Text style={styles.secondaryButtonText}>Connect Apple Health</Text>
+      </Pressable>
+      <InlineStatus status={appleHealthStatus} />
+
+      <Text style={styles.blockTitle}>Lock Screen</Text>
+      <View style={styles.switchRow}>
+        <Text style={styles.label}>Dynamic Island / Lock Screen</Text>
+        <Switch value={settings.liveActivityEnabled} onValueChange={(enabled) => void onLiveActivityToggle(enabled)} />
+      </View>
+      <Pressable style={styles.secondaryButton} onPress={() => void onLiveActivityStop()}>
+        <Text style={styles.secondaryButtonText}>Stop Live Activity</Text>
+      </Pressable>
+      <InlineStatus status={liveActivityStatus} />
     </View>
   )
 }
@@ -632,6 +769,12 @@ function StatusPill({ status }: { status: UiStatus }): ReactElement {
     <View style={[styles.status, styles[`status_${status.tone}`]]}>
       <Text style={styles.statusText}>{status.message}</Text>
     </View>
+  )
+}
+
+function InlineStatus({ status }: { status: UiStatus }): ReactElement {
+  return (
+    <Text style={[styles.inlineStatus, styles[`inlineStatus_${status.tone}`]]}>{status.message}</Text>
   )
 }
 
@@ -783,6 +926,21 @@ function formatLluError(error: unknown): string {
   return String(error)
 }
 
+function isReadingStale(reading: GlucoseReading, nextSettings: MobileSettings): boolean {
+  const ageMinutes = (Date.now() - reading.timestamp.getTime()) / 60_000
+  return ageMinutes >= nextSettings.staleDataConfig.warningMinutes
+}
+
+function statusFromCapability(
+  result: { ok: boolean; message: string },
+  successTone: UiStatus['tone'] = 'ok',
+): UiStatus {
+  return {
+    tone: result.ok ? successTone : 'warning',
+    message: result.message,
+  }
+}
+
 function formatTime(date: Date): string {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
@@ -879,6 +1037,25 @@ const styles = StyleSheet.create({
     color: '#0f172a',
     fontSize: 13,
     fontWeight: '600',
+  },
+  inlineStatus: {
+    color: '#64748b',
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 18,
+    marginTop: -8,
+  },
+  inlineStatus_idle: {
+    color: '#64748b',
+  },
+  inlineStatus_ok: {
+    color: '#0f766e',
+  },
+  inlineStatus_warning: {
+    color: '#b45309',
+  },
+  inlineStatus_error: {
+    color: '#b91c1c',
   },
   content: {
     padding: 20,

@@ -102,11 +102,23 @@ The mobile app currently includes:
 - Current reading, trend, delta, stale state, patient selection, and history chart.
 - Foreground polling and app-active refresh.
 - Pure shared-core alarm evaluation with Expo local notifications.
+- Apple Health write-sync wiring for blood glucose samples, gated behind explicit Settings consent.
+- Dynamic Island / Lock Screen Live Activity wiring for current glucose, trend, delta, and freshness.
 
 Not included in this increment:
 
-- HealthKit.
-- Live Activity.
 - Widgets.
 - Watch surfaces.
 - Backend/APNs realtime poller.
+
+## Native iOS Surface Notes
+
+Apple Health and Live Activities cannot run in Expo Go. The Settings toggles are native-gated: Expo Go should show
+a clear custom-build-required status instead of crashing. Real verification needs an EAS development or internal iOS
+build installed on a physical iPhone.
+
+Current native config:
+
+- `@kingstinct/react-native-healthkit` with HealthKit usage descriptions.
+- `expo-live-activity` with `NSSupportsLiveActivities` and push updates disabled for now.
+- No backend/APNs live update pipeline yet, so Lock Screen updates are driven by app foreground/app-active refreshes.

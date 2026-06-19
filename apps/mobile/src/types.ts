@@ -17,6 +17,9 @@ export interface MobileSettings {
   alarmThresholds: AlarmThresholds
   staleDataConfig: StaleDataConfig
   alarmNotificationsEnabled: boolean
+  appleHealthSyncEnabled: boolean
+  appleHealthLastSyncedAt: number | null
+  liveActivityEnabled: boolean
 }
 
 export interface LluSession {
@@ -44,4 +47,7 @@ export const DEFAULT_MOBILE_SETTINGS: MobileSettings = {
   alarmThresholds: { ...DEFAULT_ALARM_THRESHOLDS },
   staleDataConfig: { ...DEFAULT_STALE_DATA_CONFIG },
   alarmNotificationsEnabled: true,
+  appleHealthSyncEnabled: false,
+  appleHealthLastSyncedAt: null,
+  liveActivityEnabled: false,
 }

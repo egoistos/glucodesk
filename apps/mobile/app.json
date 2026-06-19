@@ -11,6 +11,11 @@
       "bundleIdentifier": "com.egoistos.glucodesk",
       "buildNumber": "1",
       "supportsTablet": false,
+      "infoPlist": {
+        "NSSupportsLiveActivities": true,
+        "NSHealthShareUsageDescription": "Allow GlucoDesk to read blood glucose samples from Apple Health.",
+        "NSHealthUpdateUsageDescription": "Allow GlucoDesk to write LibreLinkUp glucose readings to Apple Health."
+      },
       "config": {
         "usesNonExemptEncryption": false
       }
@@ -35,7 +40,20 @@
           "faceIDPermission": "Allow GlucoDesk to access Face ID for protected glucose credentials."
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          "NSHealthShareUsageDescription": "Allow GlucoDesk to read blood glucose samples from Apple Health.",
+          "NSHealthUpdateUsageDescription": "Allow GlucoDesk to write LibreLinkUp glucose readings to Apple Health."
+        }
+      ],
+      [
+        "expo-live-activity",
+        {
+          "enablePushNotifications": false
+        }
+      ]
     ]
   }
 }
