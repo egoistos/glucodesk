@@ -1,0 +1,39 @@
+name: Checks
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  checks:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.1
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Desktop build
+        run: npm run build
+
+      - name: Tests
+        run: npm test -- --run
+
+      - name: Desktop lint
+        run: npm run lint
+
+      - name: Mobile typecheck
+        run: npm run mobile:typecheck
+
+      - name: Mobile iOS export smoke test
+        working-directory: apps/mobile
+        run: npx expo export --platform ios --output-dir dist-ci
